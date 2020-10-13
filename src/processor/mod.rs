@@ -6,6 +6,7 @@ use crate::memory::{self, Address, Memory, Value};
 
 use derive_more::From;
 
+#[derive(Debug, Clone)]
 pub struct Processor {
     pc: Address,
     memory: Memory,
