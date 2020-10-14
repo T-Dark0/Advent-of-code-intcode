@@ -118,7 +118,7 @@ impl Processor {
     ) -> Result<(), Error> {
         let mode = modes[arg_index];
         let out_arg_addr = Address(self.pc.0 + 1 + u32::try_from(arg_index).unwrap());
-        let immediate_out = self.memory.read(out_arg_addr)?;
+        let immediate_out = self.memory.read(out_arg_addr);
         match mode {
             Mode::Positional => self.memory.write(immediate_out.try_into()?, value),
             Mode::Immediate => self.memory.write(out_arg_addr, value),
@@ -131,11 +131,11 @@ impl Processor {
 
     fn read_argument(&self, mode: Mode, index: Address) -> Result<Value, Error> {
         let addr = Address(self.pc.0 + 1 + index.0);
-        let addr2 = self.memory.read(addr)?;
+        let addr2 = self.memory.read(addr);
         let out = match mode {
-            Mode::Positional => self.memory.read(addr2.try_into()?)?,
+            Mode::Positional => self.memory.read(addr2.try_into()?),
             Mode::Immediate => addr2,
-            Mode::Relative => self.memory.read((self.relative_base + addr2).try_into()?)?,
+            Mode::Relative => self.memory.read((self.relative_base + addr2).try_into()?),
         };
         Ok(out)
     }

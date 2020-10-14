@@ -25,17 +25,12 @@ impl Processor {
     }
 
     pub fn execute_once(&mut self) -> ProcessorState {
-        let modes_and_opcode = self
-            .memory
-            .read(self.pc)
-            .or(Err(Error::FinishedWithoutTerminating))
-            .map(|mode_and_opcode| (mode_and_opcode.0 / 100, mode_and_opcode.0 % 100));
-        let (modes, opcode) = match modes_and_opcode {
-            Ok(tuple) => tuple,
-            Err(err) => return ProcessorState::Error(err),
-        };
+        let modes_and_opcode = self.memory.read(self.pc);
 
-        let result = match opcode {
+        let modes = modes_and_opcode.0 / 100;
+        let opcode = Value(modes_and_opcode.0 % 100);
+
+        let result = match opcode.0 {
             1 => self.add(modes),
             2 => self.multiply(modes),
             3 => self.input(modes),
@@ -45,6 +40,7 @@ impl Processor {
             7 => self.less_than(modes),
             8 => self.equals(modes),
             9 => self.adjust_relative_base(modes),
+            0 => return ProcessorState::Error(Error::FinishedWithoutTerminating),
             99 => return ProcessorState::Terminate,
             _ => return ProcessorState::Error(Error::InvalidOpcode),
         };
@@ -90,7 +86,6 @@ pub enum ProcessorState {
 
 #[derive(Debug, From, Eq, PartialEq)]
 pub enum Error {
-    MemoryError(memory::Error),
     IllegalPositionalArgument(memory::TryFromValueError),
     IllegalMode,
     InputReadError,
