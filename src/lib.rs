@@ -5,5 +5,5 @@
 pub mod memory;
 pub mod processor;
 
-pub use memory::{Address, Error as MemoryError, Memory, Value};
-pub use processor::{Error as ProcessorError, Processor};
+pub use memory::{Address, Memory, Value};
+pub use processor::{Error, Processor};
