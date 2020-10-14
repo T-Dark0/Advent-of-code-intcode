@@ -30,18 +30,13 @@ impl Memory {
         Memory(memory)
     }
 
-    pub fn read(&self, addr: Address) -> Result<Value, Error> {
-        self.0.get(&addr).copied().ok_or(Error::EmptyRead(addr))
+    pub fn read(&self, addr: Address) -> Value {
+        self.0.get(&addr).copied().unwrap_or(Value(0))
     }
 
     pub fn write(&mut self, addr: Address, val: Value) {
         self.0.insert(addr, val);
     }
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum Error {
-    EmptyRead(Address),
 }
 
 #[derive(Debug, Eq, PartialEq)]
