@@ -1,9 +1,12 @@
 use std::{collections::HashMap, convert::TryFrom};
 
-use derive_more::{Display, IntoIterator};
+use derive_more::{Add, AddAssign, Display, IntoIterator, Mul, MulAssign};
 
-#[derive(Debug, Display, Ord, PartialOrd, Eq, PartialEq, Copy, Clone)]
-pub struct Value(pub i32);
+#[derive(
+    Debug, Display, Ord, PartialOrd, Eq, PartialEq, Copy, Clone, Add, AddAssign, Mul, MulAssign,
+)]
+#[mul(forward)]
+pub struct Value(pub i64);
 
 #[derive(Debug, Display, Ord, PartialOrd, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct Address(pub u32);

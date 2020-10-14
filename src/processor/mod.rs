@@ -9,6 +9,7 @@ use derive_more::From;
 #[derive(Debug, Clone)]
 pub struct Processor {
     pc: Address,
+    relative_base: Value,
     memory: Memory,
     input_buffer: VecDeque<Value>,
 }
@@ -17,6 +18,7 @@ impl Processor {
     pub fn new(memory: Memory) -> Self {
         Processor {
             pc: Address(0),
+            relative_base: Value(0),
             memory,
             input_buffer: VecDeque::new(),
         }
@@ -36,12 +38,13 @@ impl Processor {
         let result = match opcode {
             1 => self.add(modes),
             2 => self.multiply(modes),
-            3 => self.input(),
+            3 => self.input(modes),
             4 => self.output(modes),
             5 => self.jump_if_true(modes),
             6 => self.jump_if_false(modes),
             7 => self.less_than(modes),
             8 => self.equals(modes),
+            9 => self.adjust_relative_base(modes),
             99 => return ProcessorState::Terminate,
             _ => return ProcessorState::Error(Error::InvalidOpcode),
         };
@@ -95,19 +98,23 @@ pub enum Error {
     FinishedWithoutTerminating,
 }
 
+type Modes = i64;
+
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Mode {
     Positional,
     Immediate,
+    Relative,
 }
 
-impl TryFrom<i32> for Mode {
+impl TryFrom<Modes> for Mode {
     type Error = ModeTryFromError;
 
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
+    fn try_from(value: Modes) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(Mode::Positional),
             1 => Ok(Mode::Immediate),
+            2 => Ok(Mode::Relative),
             _ => Err(ModeTryFromError::InvalidMode),
         }
     }
@@ -368,5 +375,21 @@ mod test {
             processor.push_input(accumulator);
         }
         assert_eq!(accumulator, Value(10))
+    }
+
+    #[test]
+    fn relative_mode() {
+        let memory = Memory::new(memory! {
+            0 => 1_09, //ARB 10
+            1 => 10,
+            2 => 12_05, //JIT (rb + 5) 100
+            3 => 5,
+            4 => 100,
+            100 => 99, //END
+
+            15 => 1
+        });
+
+        Processor::new(memory).execute().unwrap();
     }
 }
