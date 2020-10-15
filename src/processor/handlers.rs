@@ -5,7 +5,10 @@ use std::convert::{TryFrom, TryInto};
 
 type OpcodeResult = Result<Option<Value>, Error>;
 
-impl Processor {
+impl<I> Processor<I>
+where
+    I: Iterator<Item = Value>,
+{
     pub(super) fn add(&mut self, modes: Modes) -> OpcodeResult {
         let modes = split_modes::<3>(modes)?;
         let args = self.read_arguments::<2>(&modes)?;
@@ -31,7 +34,7 @@ impl Processor {
     pub(super) fn input(&mut self, modes: Modes) -> OpcodeResult {
         let modes = split_modes::<1>(modes)?;
 
-        let res = self.input_buffer.pop_front().ok_or(Error::InputReadError)?;
+        let res = self.input.next().ok_or(Error::InputReadError)?;
 
         self.write_result(&modes, 0, res)?;
         self.pc = Address(self.pc.0 + 2);

@@ -1,26 +1,38 @@
 mod handlers;
 
-use std::{collections::VecDeque, convert::TryFrom};
+use std::{convert::TryFrom, iter};
 
 use crate::memory::{self, Address, Memory, Value};
 
 use derive_more::From;
 
 #[derive(Debug, Clone)]
-pub struct Processor {
+pub struct Processor<I>
+where
+    I: Iterator<Item = Value>,
+{
     pc: Address,
     relative_base: Value,
     memory: Memory,
-    input_buffer: VecDeque<Value>,
+    input: I,
 }
 
-impl Processor {
-    pub fn new(memory: Memory) -> Self {
+impl Processor<iter::Empty<Value>> {
+    pub fn with_no_input(memory: Memory) -> Self {
+        Self::new(memory, iter::empty())
+    }
+}
+
+impl<I> Processor<I>
+where
+    I: Iterator<Item = Value>,
+{
+    pub fn new(memory: Memory, input: I) -> Self {
         Processor {
             pc: Address(0),
             relative_base: Value(0),
             memory,
-            input_buffer: VecDeque::new(),
+            input,
         }
     }
 
@@ -72,10 +84,6 @@ impl Processor {
             }
         }
     }
-
-    pub fn push_input(&mut self, value: Value) {
-        self.input_buffer.push_back(value)
-    }
 }
 
 pub enum ProcessorState {
@@ -121,11 +129,16 @@ pub enum ModeTryFromError {
 
 #[cfg(test)]
 mod test {
+    use std::{cell::RefCell, collections::VecDeque};
+
     use super::*;
     use crate::memory::{Address, Value};
     use maplit::hashmap;
 
-    impl Processor {
+    impl<I> Processor<I>
+    where
+        I: Iterator<Item = Value>,
+    {
         fn get_memory(&self) -> &Memory {
             &self.memory
         }
@@ -154,7 +167,7 @@ mod test {
             10 => 41,
             20 => 9,
         });
-        let mut processor = Processor::new(memory);
+        let mut processor = Processor::with_no_input(memory);
         processor.execute().unwrap();
 
         let expected = Memory::new(memory! {
@@ -184,7 +197,7 @@ mod test {
             10 => 17,
             20 => 50,
         });
-        let mut processor = Processor::new(memory);
+        let mut processor = Processor::with_no_input(memory);
         processor.execute().unwrap();
 
         let expected = Memory::new(memory! {
@@ -208,7 +221,7 @@ mod test {
             0 => 45,
         });
 
-        let mut processor = Processor::new(memory);
+        let mut processor = Processor::with_no_input(memory);
         assert_eq!(processor.execute().unwrap_err(), Error::InvalidOpcode);
     }
 
@@ -221,7 +234,7 @@ mod test {
             3 => 100,
         });
         assert_eq!(
-            Processor::new(memory).execute(),
+            Processor::with_no_input(memory).execute(),
             Err(Error::FinishedWithoutTerminating)
         );
     }
@@ -237,7 +250,7 @@ mod test {
 
             300 => 41,
         });
-        let mut processor = Processor::new(memory);
+        let mut processor = Processor::with_no_input(memory);
         processor.execute().unwrap();
 
         let expected = Memory::new(memory! {
@@ -264,9 +277,11 @@ mod test {
             4 => 0,
         });
 
-        let mut processor = Processor::new(memory);
-        processor.push_input(Value(3));
-        processor.push_input(Value(99));
+        let mut input_buffer = VecDeque::new();
+        input_buffer.push_back(Value(3));
+        input_buffer.push_back(Value(99));
+
+        let mut processor = Processor::new(memory, input_buffer.into_iter());
         processor.execute().unwrap();
     }
 
@@ -278,7 +293,7 @@ mod test {
             2 => 99,
         });
 
-        let mut processor = Processor::new(memory);
+        let mut processor = Processor::with_no_input(memory);
         let out = processor.execute_until_output().unwrap().unwrap();
         let term = processor.execute_until_output();
 
@@ -295,7 +310,7 @@ mod test {
             100 => 99,
         });
 
-        Processor::new(memory).execute().unwrap();
+        Processor::with_no_input(memory).execute().unwrap();
     }
 
     #[test]
@@ -307,7 +322,7 @@ mod test {
             100 => 99,
         });
 
-        Processor::new(memory).execute().unwrap();
+        Processor::with_no_input(memory).execute().unwrap();
     }
 
     #[test]
@@ -323,7 +338,7 @@ mod test {
             100 => 99,
         });
 
-        Processor::new(memory).execute().unwrap();
+        Processor::with_no_input(memory).execute().unwrap();
     }
 
     #[test]
@@ -339,7 +354,7 @@ mod test {
             100 => 99,
         });
 
-        Processor::new(memory).execute().unwrap();
+        Processor::with_no_input(memory).execute().unwrap();
     }
 
     #[test]
@@ -358,16 +373,20 @@ mod test {
             10 => 0,
         });
 
-        let mut processor = Processor::new(memory);
-        let mut accumulator = Value(0);
-        processor.push_input(accumulator);
+        let input_buffer: RefCell<VecDeque<Value>> = RefCell::new(VecDeque::new());
 
+        let input = iter::repeat_with(|| input_buffer.borrow_mut().pop_front().unwrap());
+        let mut processor = Processor::new(memory, input);
+
+        let mut accumulator = Value(0);
+
+        input_buffer.borrow_mut().push_back(Value(0));
         for _ in 0..10 {
             accumulator = processor
                 .execute_until_output()
                 .expect("Terminated")
                 .expect("Errored");
-            processor.push_input(accumulator);
+            input_buffer.borrow_mut().push_back(accumulator);
         }
         assert_eq!(accumulator, Value(10))
     }
@@ -385,6 +404,6 @@ mod test {
             15 => 1
         });
 
-        Processor::new(memory).execute().unwrap();
+        Processor::with_no_input(memory).execute().unwrap();
     }
 }
